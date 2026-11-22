@@ -22,8 +22,19 @@ function removeContained(spaces) {
     otherIndex !== index && contains(other, space) && (!contains(space, other) || otherIndex < index)))
 }
 
-function pack(puzzle, view, order) {
-  const gap = Math.sqrt(puzzle.width * puzzle.height / order.length) * .13
+function orientedBounds(piece, turns = 0) {
+  const left = piece.bounds.left - piece.x
+  const right = piece.bounds.right - piece.x
+  const top = piece.bounds.top - piece.y
+  const bottom = piece.bounds.bottom - piece.y
+  if (turns === 1) return { left: -bottom, right: -top, top: left, bottom: right }
+  if (turns === 2) return { left: -right, right: -left, top: -bottom, bottom: -top }
+  if (turns === 3) return { left: top, right: bottom, top: -right, bottom: -left }
+  return { left, right, top, bottom }
+}
+
+function pack(puzzle, view, order, turns) {
+  const gap = Math.sqrt(puzzle.width * puzzle.height / order.length) * .11
   const margin = gap * 1.7
   const gutter = gap * 1.6
   const left = view.x + margin
@@ -41,14 +52,14 @@ function pack(puzzle, view, order) {
   }))
   const entries = order.map(id => {
     const piece = puzzle.pieces[id]
-    const { left, right, top, bottom } = piece.bounds
-    return { piece, width: right - left + gap, height: bottom - top + gap }
+    const { left, right, top, bottom } = orientedBounds(piece, turns[id])
+    return { id, left, top, width: right - left + gap, height: bottom - top + gap }
   })
   // Pack the larger pieces first. The shuffled order breaks ties between similar pieces.
   entries.sort((a, b) => Math.round(Math.max(b.width, b.height) / gap) -
     Math.round(Math.max(a.width, a.height) / gap))
   const positions = new Map()
-  for (const { piece, width, height } of entries) {
+  for (const { id, left, top, width, height } of entries) {
     let best = null
     for (const zone of zones) {
       for (const space of zone.spaces) {
@@ -63,45 +74,59 @@ function pack(puzzle, view, order) {
     const footprint = { x: space.x, y: space.y, width, height }
     zone.used += width * height
     zone.spaces = removeContained(zone.spaces.flatMap(area => subtract(area, footprint)))
-    positions.set(piece.id, {
-      x: space.x + gap / 2 + piece.x - piece.bounds.left,
-      y: space.y + gap / 2 + piece.y - piece.bounds.top,
+    positions.set(id, {
+      x: space.x + gap / 2 - left,
+      y: space.y + gap / 2 - top,
     })
   }
   return positions
 }
 
-export function layoutTable(puzzle, width, height, order) {
+export function layoutTable(puzzle, width, height, order, turns = []) {
+  width = Math.max(1, width)
+  height = Math.max(1, height)
   const aspect = width / height
   const sideRoom = aspect >= 1.12
-  const fitWidth = Math.min(width * (sideRoom ? .49 : .85),
-    height * (sideRoom ? .75 : .46) * puzzle.width / puzzle.height)
-  function viewAt(scale) {
-    width = Math.max(1, width)
-    height = Math.max(1, height)
+  const fitWidth = Math.min(width * (sideRoom ? .54 : .91),
+    height * (sideRoom ? .82 : .5) * puzzle.width / puzzle.height)
+  function arrange(scale) {
     const worldWidth = width / scale
     const worldHeight = height / scale
-    return {
+    const view = {
       x: (puzzle.width - worldWidth) / 2,
       y: (puzzle.height - worldHeight) / 2,
       width: worldWidth,
       height: worldHeight,
     }
+    const positions = pack(puzzle, view, order, turns)
+    return positions ? { view, positions } : null
   }
-  let scale = Math.max(.000001, fitWidth / puzzle.width)
-  for (;;) {
-    const view = viewAt(scale)
-    const positions = pack(puzzle, view, order)
-    if (positions) return { view, positions }
-    scale *= .86
+  let high = Math.max(.000001, fitWidth / puzzle.width)
+  let best = arrange(high)
+  if (best) return best
+  let low = high * .87
+  while (!(best = arrange(low))) {
+    high = low
+    low *= .87
   }
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const scale = (high + low) / 2
+    const next = arrange(scale)
+    if (next) {
+      best = next
+      low = scale
+    } else {
+      high = scale
+    }
+  }
+  return best
 }
 
-export function keepOnTable(piece, point, view) {
-  const { left, right, top, bottom } = piece.bounds
+export function keepOnTable(piece, point, view, turns = 0) {
+  const { left, right, top, bottom } = orientedBounds(piece, turns)
   const pad = 3
   return {
-    x: Math.max(view.x + piece.x - left + pad, Math.min(view.x + view.width + piece.x - right - pad, point.x)),
-    y: Math.max(view.y + piece.y - top + pad, Math.min(view.y + view.height + piece.y - bottom - pad, point.y)),
+    x: Math.max(view.x - left + pad, Math.min(view.x + view.width - right - pad, point.x)),
+    y: Math.max(view.y - top + pad, Math.min(view.y + view.height - bottom - pad, point.y)),
   }
 }

@@ -18,11 +18,13 @@ const preview = $('reference-dialog')
 const photoSelect = $('setup-photo-select')
 const countSelect = $('piece-count')
 const patternSelect = $('cut-pattern')
+const orientationSelect = $('orientation')
 const fileInput = $('file-input')
 const keys = { game: 'puzzledad/game/1', photos: 'puzzledad/photos/1' }
 const maxPhotoStorage = 3_600_000
 const svgNamespace = 'http://www.w3.org/2000/svg'
 const finishFormatter = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function svg(element, attributes = {}) {
   const node = document.createElementNS(svgNamespace, element)
@@ -91,6 +93,8 @@ function newGame(photoId, settings, generated) {
     order: shuffle(generated.pieces.map(piece => piece.id), randomFrom(settings.seed ^ 0x9e3779b9)),
     placements: [],
     positions: {},
+    turns: {},
+    rotationSeed: settings.seed ^ 0x61c88647,
     depth: 0,
     elapsed: 0,
     started: false,
@@ -119,10 +123,14 @@ function loadPuzzle() {
         ids.has(Number(id)) && Number.isFinite(point?.x) && Number.isFinite(point?.y) &&
         Number.isFinite(point?.depth)))
       const depth = Math.max(0, ...Object.values(positions).map(point => point.depth))
-      return { game: { ...saved, positions, depth }, puzzle: generated }
+      const orientation = saved.orientation === 'shuffled' ? 'shuffled' : 'fixed'
+      const turns = Object.fromEntries(Object.entries(saved.turns || {}).filter(([id, turn]) =>
+        ids.has(Number(id)) && Number.isInteger(turn) && turn >= 0 && turn < 4))
+      const rotationSeed = Number.isInteger(saved.rotationSeed) ? saved.rotationSeed : saved.seed ^ 0x61c88647
+      return { game: { ...saved, positions, depth, orientation, rotationSeed, turns }, puzzle: generated }
     }
   }
-  const settings = { shape: 'classic', count: 150, seed: newSeed(), pattern: 'random' }
+  const settings = { shape: 'classic', count: 150, seed: newSeed(), pattern: 'random', orientation: 'fixed' }
   const generated = generatePuzzle(starterPhotos[0], settings)
   return { game: newGame(starterPhotos[0].id, settings, generated), puzzle: generated }
 }
@@ -137,6 +145,8 @@ let camera = null
 let zoom = 1
 const looseNodes = new Map()
 const piecePositions = new Map()
+const rotations = new WeakMap()
+let initialTurns = []
 let importing = false
 let dragDepth = 0
 let toastTimeout
@@ -146,6 +156,12 @@ const complete = () => placed.size === puzzle.pieces.length
 const activePhoto = () => findPhoto(game.photoId)
 const elapsedTime = () => game.elapsed + (startedAt === null ? 0 : performance.now() - startedAt)
 const activeDialog = () => setup.open || results.open || preview.open
+const turnsFor = id => game.orientation === 'shuffled' ? (game.turns[id] ?? initialTurns[id]) : 0
+
+function makeInitialTurns() {
+  const random = randomFrom(game.rotationSeed)
+  initialTurns = game.orientation === 'shuffled' ? puzzle.pieces.map(() => Math.floor(random() * 4)) : []
+}
 
 function persist() {
   const record = { ...game, elapsed: elapsedTime() }
@@ -329,11 +345,11 @@ function zoomTable(multiplier, point = viewCenter()) {
 function refreshLayout(resetView = false) {
   const center = camera && !resetView ? viewCenter() : { x: puzzle.width / 2, y: puzzle.height / 2 }
   if (resetView) zoom = 1
-  layout = layoutTable(puzzle, stage.clientWidth, stage.clientHeight, game.order)
+  layout = layoutTable(puzzle, stage.clientWidth, stage.clientHeight, game.order, initialTurns)
   setView(center.x, center.y)
   for (const id of looseNodes.keys()) {
     const position = game.positions[id] || layout.positions.get(id)
-    movePiece(id, keepOnTable(puzzle.pieces[id], position, layout.view))
+    movePiece(id, keepOnTable(puzzle.pieces[id], position, layout.view, turnsFor(id)))
   }
 }
 
@@ -344,6 +360,47 @@ function movePiece(id, position) {
     (position.y - piece.y) + ')')
 }
 
+function setAngle(rotor, piece, angle) {
+  rotor.dataset.angle = angle
+  rotor.setAttribute('transform', 'rotate(' + [angle, piece.x, piece.y].join(' ') + ')')
+}
+
+function animateRotation(rotor, piece, turns) {
+  const previous = rotations.get(rotor)
+  if (previous) cancelAnimationFrame(previous.frame)
+  if (reduceMotion()) {
+    rotations.delete(rotor)
+    setAngle(rotor, piece, turns * 90)
+    return
+  }
+  const from = Number(rotor.dataset.angle)
+  const to = (previous?.to ?? from) + 90
+  const start = performance.now()
+  const motion = { to, frame: 0 }
+  function update(now) {
+    if (!rotor.isConnected) return
+    const progress = Math.max(0, Math.min(1, (now - start) / 155))
+    if (progress === 1) {
+      setAngle(rotor, piece, turns * 90)
+      rotations.delete(rotor)
+      return
+    }
+    const eased = 1 - (1 - progress) ** 3
+    setAngle(rotor, piece, from + (to - from) * eased)
+    motion.frame = requestAnimationFrame(update)
+  }
+  rotations.set(rotor, motion)
+  motion.frame = requestAnimationFrame(update)
+}
+
+function labelPiece(node, piece, turns) {
+  const label = (piece.edge ? 'Edge piece ' : 'Piece ') + (piece.id + 1)
+  const orientation = game.orientation === 'shuffled'
+    ? (turns ? ', rotated ' + turns * 90 + ' degrees' : ', upright')
+    : ''
+  node.setAttribute('aria-label', label + orientation)
+}
+
 function renderLoose() {
   const available = game.order.filter(id => !placed.has(id) && (!game.edges || puzzle.pieces[id].edge))
   available.sort((a, b) => (game.positions[a]?.depth || 0) - (game.positions[b]?.depth || 0))
@@ -351,14 +408,19 @@ function renderLoose() {
   piecePositions.clear()
   for (const id of available) {
     const piece = puzzle.pieces[id]
+    const turns = turnsFor(id)
     const node = svg('g', {
       class: 'loose-piece', 'data-piece': id, role: 'button', tabindex: game.paused ? '-1' : '0',
-      'aria-label': (piece.edge ? 'Edge piece ' : 'Piece ') + (id + 1), 'aria-pressed': 'false',
+      'aria-pressed': 'false',
     })
-    node.append(pieceGraphic(id), svg('path', { d: piece.path, class: 'hit-piece', 'aria-hidden': 'true' }))
+    labelPiece(node, piece, turns)
+    const rotor = svg('g')
+    setAngle(rotor, piece, turns * 90)
+    rotor.append(pieceGraphic(id), svg('path', { d: piece.path, class: 'hit-piece', 'aria-hidden': 'true' }))
+    node.append(rotor)
     looseNodes.set(id, node)
     const position = game.positions[id] || layout.positions.get(id)
-    movePiece(id, keepOnTable(piece, position, layout.view))
+    movePiece(id, keepOnTable(piece, position, layout.view, turns))
   }
   looseLayer.replaceChildren(...looseNodes.values())
   if (game.edges && !available.length && !complete()) {
@@ -368,6 +430,7 @@ function renderLoose() {
 
 function renderAll() {
   looseNodes.clear()
+  makeInitialTurns()
   renderGeometry()
   $('solved-layer').replaceChildren()
   for (const { id } of game.placements) drawSolved(id)
@@ -411,19 +474,41 @@ function boardPoint(clientX, clientY) {
   }
 }
 
+function closeToTarget(piece, point) {
+  return Math.hypot(point.x - piece.x, point.y - piece.y) <= piece.snap
+}
+
+function playSnapEffect(piece) {
+  if (reduceMotion()) return
+  const spark = svg('g', { class: 'snap-spark', 'aria-hidden': 'true' })
+  const radius = piece.snap * .92
+  for (const [x, y] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    spark.append(svg('line', {
+      x1: piece.x + x * radius / 2, y1: piece.y + y * radius / 2,
+      x2: piece.x + x * radius, y2: piece.y + y * radius,
+    }))
+  }
+  $('effects-layer').append(spark)
+  spark.animate([{ opacity: 0 }, { opacity: .88, offset: .23 }, { opacity: 0 }], {
+    duration: 230, easing: 'ease-out',
+  }).finished.then(() => spark.remove(), () => spark.remove())
+}
+
 function finishMove(id, point, keyboard = false) {
   const piece = puzzle.pieces[id]
+  const turns = turnsFor(id)
+  const centered = closeToTarget(piece, point)
   clearSelection({ restore: false })
   const loose = looseNodes.get(id)
-  if (Math.hypot(point.x - piece.x, point.y - piece.y) > piece.snap) {
-    const position = keepOnTable(piece, point, layout.view)
+  if (!centered || turns) {
+    const position = keepOnTable(piece, point, layout.view, turns)
     game.positions[id] = { ...position, depth: ++game.depth }
     movePiece(id, position)
     if (point.x >= 0 && point.x <= puzzle.width && point.y >= 0 && point.y <= puzzle.height) {
       board.classList.add('miss')
       clearTimeout(missTimeout)
       missTimeout = setTimeout(() => board.classList.remove('miss'), 300)
-      announce('Piece moved. It fits somewhere else.')
+      announce(centered ? 'Rotate this piece clockwise until it is upright.' : 'Piece moved. It fits somewhere else.')
     }
     if (keyboard) loose.focus({ preventScroll: true })
     persist()
@@ -433,11 +518,13 @@ function finishMove(id, point, keyboard = false) {
   placed.add(id)
   game.placements.push({ id, at: elapsedTime() })
   delete game.positions[id]
+  delete game.turns[id]
   const next = loose.nextElementSibling || looseLayer.firstElementChild
   loose.remove()
   looseNodes.delete(id)
   piecePositions.delete(id)
   drawSolved(id)
+  playSnapEffect(piece)
   if (complete()) {
     stopClock()
     game.elapsed = game.placements.at(-1).at
@@ -453,6 +540,25 @@ function finishMove(id, point, keyboard = false) {
     if (next?.isConnected) next.focus({ preventScroll: true })
     else $('edge-toggle').focus({ preventScroll: true })
   }
+}
+
+function rotatePiece(id, keyboard = false) {
+  const piece = puzzle.pieces[id]
+  const turns = (turnsFor(id) + 1) % 4
+  game.turns[id] = turns
+  const node = looseNodes.get(id)
+  labelPiece(node, piece, turns)
+  const position = keepOnTable(piece, piecePositions.get(id), layout.view, turns)
+  if (!turns && closeToTarget(piece, position)) {
+    finishMove(id, position, keyboard)
+    return
+  }
+  animateRotation(node.firstElementChild, piece, turns)
+  movePiece(id, position)
+  selected.origin = keepOnTable(piece, selected.origin, layout.view, turns)
+  game.positions[id] = { ...selected.origin, depth: ++game.depth }
+  persist()
+  announce(turns ? 'Rotated clockwise to ' + turns * 90 + ' degrees.' : 'Piece upright.')
 }
 
 function keepInView(point) {
@@ -476,6 +582,13 @@ board.addEventListener('keydown', event => {
     keepInView(piecePositions.get(id))
     return
   }
+  const rotate = event.key.toLowerCase() === 'r' && !event.ctrlKey && !event.metaKey
+  if ((loose || selected) && game.orientation === 'shuffled' && rotate) {
+    event.preventDefault()
+    if (loose) selectPiece(Number(loose.dataset.piece), true)
+    rotatePiece(selected.id, true)
+    return
+  }
   if (!selected) return
   if (event.key === 'Escape' || event.key === 'Tab') {
     clearSelection({ focus: event.key === 'Escape' })
@@ -493,7 +606,9 @@ board.addEventListener('keydown', event => {
   const piece = puzzle.pieces[id]
   const position = piecePositions.get(id)
   const step = piece.snap * (event.shiftKey ? 3.4 : .48)
-  const next = keepOnTable(piece, { x: position.x + step * direction[0], y: position.y + step * direction[1] }, layout.view)
+  const next = keepOnTable(piece, {
+    x: position.x + step * direction[0], y: position.y + step * direction[1],
+  }, layout.view, turnsFor(id))
   movePiece(id, next)
   keepInView(next)
 })
@@ -551,7 +666,10 @@ function finishGesture(event, cancelled = false) {
   if (mode === 'piece') {
     finishMove(id, piecePositions.get(id))
   } else if (!mode && id !== null) {
-    if (selected?.id === id) clearSelection()
+    if (game.orientation === 'shuffled') {
+      if (selected?.id !== id) selectPiece(id, false)
+      rotatePiece(id)
+    } else if (selected?.id === id) clearSelection()
     else selectPiece(id, false)
   } else if (!mode && selected) {
     finishMove(selected.id, boardPoint(event.clientX, event.clientY))
@@ -590,9 +708,13 @@ $('shuffle').addEventListener('click', () => {
   clearSelection()
   game.order = shuffle(game.order)
   game.positions = {}
+  game.turns = {}
+  game.rotationSeed = newSeed()
   game.depth = 0
+  makeInitialTurns()
   refreshLayout(true)
   renderLoose()
+  if (!reduceMotion()) looseLayer.animate([{ opacity: .25 }, { opacity: 1 }], { duration: 190 })
   persist()
   announce('Loose pieces shuffled.')
 })
@@ -622,6 +744,7 @@ function openSetup(photoId = game.photoId) {
   fillPhotoSelect(photoId)
   countSelect.value = levels.includes(game.count) ? game.count : 150
   patternSelect.value = game.pattern
+  orientationSelect.value = game.orientation
   $('setup-form').elements.shape.value = game.shape
   $('replace-note').hidden = complete() || !game.started
   refreshSetupPhoto()
@@ -671,6 +794,7 @@ $('setup-form').addEventListener('submit', event => {
     shape: event.target.elements.shape.value,
     count: Number(countSelect.value),
     pattern: patternSelect.value,
+    orientation: orientationSelect.value,
     seed: newSeed(),
   }
   puzzle = generatePuzzle(photo, settings)

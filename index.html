@@ -61,7 +61,7 @@
       <div class="tool-group">
         <button type="button" class="button utility new-button" id="new-game" aria-label="New puzzle"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span>New puzzle</span></button>
         <button type="button" class="icon-button" id="preview-photo" aria-label="Reference photo" title="Reference photo"><svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg></button>
-        <button type="button" class="icon-button" id="guide-toggle" aria-label="Board guide" aria-pressed="true" title="Board guide"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg></button>
+        <button type="button" class="icon-button" id="guide-toggle" aria-label="Background photo" aria-pressed="true" title="Background photo"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg></button>
         <button type="button" class="icon-button" id="edge-toggle" aria-label="Show edge pieces only" aria-pressed="false" title="Show edge pieces only"><svg class="icon" aria-hidden="true"><use href="#i-edge"></use></svg></button>
         <button type="button" class="icon-button" id="shuffle" aria-label="Shuffle loose pieces" title="Shuffle loose pieces"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"></use></svg></button>
         <button type="button" class="button utility" id="show-results" hidden>Results</button>
@@ -80,11 +80,12 @@
         <g id="outline-layer" aria-hidden="true"></g>
         <g id="solved-layer" aria-hidden="true"></g>
         <g id="loose-layer" aria-label="Loose pieces"></g>
+        <g id="effects-layer" aria-hidden="true"></g>
       </svg>
       <div id="pause-overlay" class="pause-overlay" hidden>
         <button type="button" class="button primary" id="resume"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg>Resume puzzle</button>
       </div>
-      <p id="board-help" class="visually-hidden">Drag loose pieces to move them. To play with the keyboard, Tab to a piece, press Enter to pick it up, use the arrow keys to move it and press Enter to place it. Escape puts it back.</p>
+      <p id="board-help" class="visually-hidden">Drag loose pieces to move them. With the keyboard, Tab to a piece, press Enter to pick it up, use the arrow keys to move it and press Enter to place it. Escape puts it back. In shuffled orientation mode, click a piece or press R to rotate it clockwise.</p>
     </div>
     <p id="announcement" class="visually-hidden" role="status"></p>
   </main>
@@ -112,6 +113,7 @@
       <div class="setup-options">
         <label for="piece-count">Pieces<select id="piece-count"></select></label>
         <label for="cut-pattern">Cut pattern<select id="cut-pattern"><option value="random">Random</option><option value="repeating">Repeating</option></select></label>
+        <label for="orientation">Piece orientation<select id="orientation"><option value="fixed">Fixed upright</option><option value="shuffled">Shuffled (quarter turns)</option></select></label>
       </div>
       <p id="replace-note" class="form-note" hidden>Starting over will replace your saved puzzle.</p>
       <div class="dialog-actions">
