@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f5ed">
+  <meta name="description" content="A quiet jigsaw table for your favorite photos.">
+  <title>Puzzle Dad</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/puzzle.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <svg class="definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M9 3h4v2.3a2 2 0 1 0 4 0V3h3v6h-2a2 2 0 0 0 0 4h2v7h-6v-2a2 2 0 1 0-4 0v2H4v-6h2a2 2 0 1 0 0-4H4V3h5Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14m6-14v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7Z"/></symbol>
+    <symbol id="i-guide" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 3"/><path d="M12 9v6m-3-3h6"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="m4 16 5-5 4.5 4.5 2.5-2.5 4 4"/><circle cx="15.5" cy="9" r="1.1"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5m-5 11h5v-5M9 20H4v-5"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M4 7h2.5c5 0 6 10 11 10H20m-3-3 3 3-3 3M4 17h2.5c1.6 0 2.8-1 3.8-2.5M14 9.5C15 8 16 7 17.5 7H20m-3-3 3 3-3 3"/></symbol>
+    <symbol id="i-edge" viewBox="0 0 24 24"><path d="M20 4H5v15m6-15v4a2 2 0 1 0 4 0V4M5 14h4a2 2 0 1 0 0-4H5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-wiggle" viewBox="0 0 24 24"><path d="M3.5 4.5h17v15h-17Zm0 8c3-5 5 5 8.5 0s5.5 4 8.5 0"/></symbol>
+    <symbol id="i-mosaic" viewBox="0 0 24 24"><path d="m8 3 4 2.3v4.6L8 12 4 9.9V5.3Zm8 0 4 2.3v4.6L16 12l-4-2.1V5.3Zm-4 7 4 2.2v4.6L12 19l-4-2.2v-4.6Z"/></symbol>
+    <symbol id="i-triangles" viewBox="0 0 24 24"><path d="m3 19 9-15 9 15Zm5-8 6 8m-4 0 6-8"/></symbol>
+    <symbol id="i-squares" viewBox="0 0 24 24"><path d="M4 4h16v16H4Zm0 8h16m-8-8v8m0 0v8m4-8v8m-4-4h8"/></symbol>
+    <symbol id="i-surprise" viewBox="0 0 24 24"><path d="M12 3c0 6-3 9-9 9 6 0 9 3 9 9 0-6 3-9 9-9-6 0-9-3-9-9Z"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <defs id="photo-definitions"></defs>
+  </svg>
+  <main class="table" aria-label="Puzzle table">
+    <header class="puzzlebar" aria-label="Puzzle status">
+      <button type="button" class="indicator time-indicator" id="timer-toggle" aria-label="Pause timer" aria-pressed="false">
+        <svg class="icon" aria-hidden="true"><use id="timer-icon" href="#i-pause"></use></svg>
+        <span class="indicator-label">Time</span>
+        <strong id="elapsed" aria-hidden="true">0:00</strong>
+      </button>
+      <div class="indicator progress-indicator">
+        <span class="indicator-label">Progress</span>
+        <strong id="progress-text">0 / 150</strong>
+        <progress id="progress" value="0" max="150" aria-label="Pieces placed"></progress>
+      </div>
+      <div class="indicator">
+        <span class="indicator-label">Est. finish</span>
+        <strong id="estimate" title="Estimated local finish time based on your recent placements">—</strong>
+      </div>
+      <div class="indicator save-indicator" id="storage-status" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="indicator-label">Auto-save</span>
+        <strong id="save-value">On</strong>
+      </div>
+    </header>
+
+    <nav class="toolbar" aria-label="Puzzle tools">
+      <div class="tool-group">
+        <button type="button" class="button utility new-button" id="new-game" aria-label="New puzzle"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span>New puzzle</span></button>
+        <button type="button" class="icon-button" id="preview-photo" aria-label="Reference photo" title="Reference photo"><svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg></button>
+        <button type="button" class="icon-button" id="guide-toggle" aria-label="Board guide" aria-pressed="true" title="Board guide"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg></button>
+        <button type="button" class="icon-button" id="edge-toggle" aria-label="Show edge pieces only" aria-pressed="false" title="Show edge pieces only"><svg class="icon" aria-hidden="true"><use href="#i-edge"></use></svg></button>
+        <button type="button" class="icon-button" id="shuffle" aria-label="Shuffle loose pieces" title="Shuffle loose pieces"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"></use></svg></button>
+        <button type="button" class="button utility" id="show-results" hidden>Results</button>
+      </div>
+      <div class="tool-group zoom-group">
+        <button type="button" class="icon-button" id="zoom-out" aria-label="Zoom out" title="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"></use></svg></button>
+        <button type="button" class="icon-button" id="zoom-fit" aria-label="Fit puzzle table" title="Fit puzzle table"><svg class="icon" aria-hidden="true"><use href="#i-expand"></use></svg></button>
+        <button type="button" class="icon-button" id="zoom-in" aria-label="Zoom in" title="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg></button>
+      </div>
+    </nav>
+
+    <div class="stage" id="stage">
+      <svg id="board" class="board" role="group" aria-label="Puzzle board" aria-describedby="board-help" tabindex="0">
+        <rect id="board-target" aria-hidden="true"></rect>
+        <use id="guide-image" href="#source-photo" aria-hidden="true"></use>
+        <g id="outline-layer" aria-hidden="true"></g>
+        <g id="solved-layer" aria-hidden="true"></g>
+        <g id="loose-layer" aria-label="Loose pieces"></g>
+      </svg>
+      <div id="pause-overlay" class="pause-overlay" hidden>
+        <button type="button" class="button primary" id="resume"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg>Resume puzzle</button>
+      </div>
+      <p id="board-help" class="visually-hidden">Drag loose pieces to move them. To play with the keyboard, Tab to a piece, press Enter to pick it up, use the arrow keys to move it and press Enter to place it. Escape puts it back.</p>
+    </div>
+    <p id="announcement" class="visually-hidden" role="status"></p>
+  </main>
+
+  <div id="drop-overlay" class="drop-overlay" hidden><div><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>Drop a photo to make a puzzle</div></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input type="file" id="file-input" accept="image/*" hidden>
+
+  <dialog id="setup-dialog" class="dialog" aria-labelledby="setup-heading">
+    <form id="setup-form">
+      <div class="dialog-head">
+        <h2 id="setup-heading">New puzzle</h2>
+        <button type="button" data-close class="icon-button" aria-label="Close new puzzle"><svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg></button>
+      </div>
+      <div id="photo-list" class="photo-list" aria-label="Puzzle photos"></div>
+      <div class="setup-photo">
+        <img id="setup-img" alt="">
+        <label for="setup-photo-select">Photo<select id="setup-photo-select"></select></label>
+        <button type="button" class="button small quiet" id="setup-import">Add photo</button>
+      </div>
+      <fieldset>
+        <legend>Piece shape</legend>
+        <div class="shape-grid" id="shape-options"></div>
+      </fieldset>
+      <div class="setup-options">
+        <label for="piece-count">Pieces<select id="piece-count"></select></label>
+        <label for="cut-pattern">Cut pattern<select id="cut-pattern"><option value="random">Random</option><option value="repeating">Repeating</option></select></label>
+      </div>
+      <p id="replace-note" class="form-note" hidden>Starting over will replace your saved puzzle.</p>
+      <div class="dialog-actions">
+        <button type="button" id="remove-photo" class="button quiet danger" hidden>Remove photo</button>
+        <button type="submit" class="button primary">Start puzzle</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="reference-dialog" class="dialog photo-dialog" aria-labelledby="preview-title">
+    <div class="dialog-head">
+      <h2 id="preview-title">Reference photo</h2>
+      <button type="button" data-close class="icon-button" aria-label="Close reference"><svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg></button>
+    </div>
+    <img id="preview-img" alt="">
+  </dialog>
+  <dialog id="results-dialog" class="dialog results-dialog" aria-labelledby="results-heading">
+    <div class="dialog-head">
+      <div><p class="results-kicker" id="results-subtitle"></p><h2 id="results-heading">Every piece in place.</h2></div>
+      <button type="button" data-close class="icon-button" aria-label="Close results"><svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg></button>
+    </div>
+    <dl id="results-stats" class="results-stats"></dl>
+    <figure class="rhythm">
+      <figcaption>Time between placements</figcaption>
+      <svg id="rhythm-chart" role="img" aria-label="Time between placements bar chart" viewBox="0 0 440 85" preserveAspectRatio="none"></svg>
+      <div class="chart-labels"><span>First piece</span><span>Last piece</span></div>
+    </figure>
+    <p class="form-note">Gap variance is measured in seconds squared. RMS gap change measures how much the time between placements tended to change.</p>
+    <div class="dialog-actions"><button type="button" class="button primary" id="next-game">Another puzzle</button></div>
+  </dialog>
+</body>
+</html>
