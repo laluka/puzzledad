@@ -184,8 +184,18 @@ progress::-moz-progress-bar { background: #607d5a; transition: width .18s ease-o
 .button.utility { min-height: 2.15rem; padding: .28rem .55rem; font-size: .875rem; }
 .icon-button { min-height: 2.15rem; width: 2.15rem; padding: .22rem; background: transparent; border-color: transparent; color: var(--muted); }
 .icon-button[aria-pressed="true"] { color: #38513d; border-color: #ced8c8; background: #e9eee4; }
-.photo-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .65rem; }
-.photo-tile { width: 3.2rem; height: 2.6rem; padding: .1rem; border-radius: .35rem; background: transparent; border: 1px solid transparent; }
+.photo-list {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-content: start;
+  gap: .35rem;
+  max-height: 10rem;
+  margin-bottom: .65rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.photo-tile { min-width: 0; aspect-ratio: 4 / 3; padding: .1rem; border-radius: .35rem; background: transparent; border: 1px solid transparent; }
 .photo-tile:hover { border-color: #9ba793; }
 .photo-tile[aria-current="true"] { border-color: var(--rust); }
 .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: .22rem; }
@@ -258,6 +268,9 @@ fieldset legend { padding: 0 0 .35rem; }
 }
 @media (max-width: 31rem) {
   .new-button span { display: none; }
+  .photo-list { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .setup-photo { grid-template-columns: minmax(0, 1fr) auto; }
+  .setup-photo img { display: none; }
 }
 @media (pointer: coarse) {
   .toolbar .icon-button { min-height: 2.6rem; width: clamp(2rem, 9vw, 2.6rem); }

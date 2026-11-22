@@ -1,12 +1,6 @@
 import { currentCutVersion, generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs?v=2'
 import { keepOnTable, layoutTable } from './layout.mjs'
-
-const starterPhotos = [
-  { id: 'garden', name: 'Garden patrol', source: './assets/photos/garden.webp', width: 1680, height: 1260, alt: 'Black-and-white cat in a garden with pink flowers' },
-  { id: 'blue', name: 'Blue blanket', source: './assets/photos/blue.webp', width: 720, height: 540, alt: 'Black-and-white cat resting on a bright blue blanket' },
-  { id: 'nap', name: 'Afternoon nap', source: './assets/photos/nap.webp', width: 1680, height: 1260, alt: 'Fluffy cat curled up asleep on a blue cushion' },
-  { id: 'armchair', name: 'The armchair', source: './assets/photos/armchair.webp', width: 1680, height: 952, alt: 'Black-and-white cat lounging across a chair' },
-]
+import { starterPhotos } from './photos.mjs'
 
 const $ = id => document.getElementById(id)
 const board = $('board')
@@ -16,6 +10,7 @@ const setup = $('setup-dialog')
 const results = $('results-dialog')
 const preview = $('reference-dialog')
 const photoSelect = $('setup-photo-select')
+const photoList = $('photo-list')
 const countSelect = $('piece-count')
 const patternSelect = $('cut-pattern')
 const orientationSelect = $('orientation')
@@ -240,29 +235,30 @@ function toast(message) {
   toastTimeout = setTimeout(() => { target.hidden = true }, 4300)
 }
 
-function setPhoto(node, photo, decorative = false) {
-  node.src = photo.source
-  node.alt = decorative ? '' : (photo.alt || photo.name)
+function setPhoto(node, photo, thumbnail = false) {
+  node.src = thumbnail ? (photo.thumbnail || photo.source) : photo.source
+  node.alt = thumbnail ? '' : (photo.alt || photo.name)
 }
 
-function renderPhotoShelf(activeId) {
-  const items = allPhotos().map(photo => {
+function renderPhotoShelf(photos) {
+  const items = photos.map(photo => {
     const button = element('button', 'photo-tile')
     button.type = 'button'
+    button.dataset.photo = photo.id
     button.title = photo.name
     button.setAttribute('aria-label', 'Choose ' + photo.name)
-    if (photo.id === activeId) button.setAttribute('aria-current', 'true')
     const image = element('img')
+    image.loading = 'lazy'
+    image.decoding = 'async'
     setPhoto(image, photo, true)
     button.append(image)
     button.addEventListener('click', () => {
       photoSelect.value = photo.id
       refreshSetupPhoto()
-      $('photo-list').querySelector('[aria-current="true"]')?.focus({ preventScroll: true })
     })
     return button
   })
-  $('photo-list').replaceChildren(...items)
+  photoList.replaceChildren(...items)
 }
 
 function pieceGraphic(id) {
@@ -761,19 +757,29 @@ function openSetup(photoId = game.photoId) {
   orientationSelect.value = game.orientation
   $('setup-form').elements.shape.value = game.shape
   $('replace-note').hidden = complete() || !game.started
-  refreshSetupPhoto()
   showDialog(setup)
+  refreshSetupPhoto()
 }
 
 function fillPhotoSelect(photoId) {
-  photoSelect.replaceChildren(...allPhotos().map(photo => new Option(photo.name, photo.id)))
+  const photos = allPhotos()
+  photoSelect.replaceChildren(...photos.map(photo => new Option(photo.name, photo.id)))
   photoSelect.value = photoId
+  renderPhotoShelf(photos)
 }
 
 function refreshSetupPhoto() {
   const photo = findPhoto(photoSelect.value)
   setPhoto($('setup-img'), photo, true)
-  renderPhotoShelf(photo.id)
+  for (const button of photoList.children) {
+    if (button.dataset.photo === photo.id) button.setAttribute('aria-current', 'true')
+    else button.removeAttribute('aria-current')
+  }
+  const selectedTile = photoList.querySelector('[aria-current="true"]')
+  const gallery = photoList.getBoundingClientRect()
+  const tile = selectedTile.getBoundingClientRect()
+  if (tile.top < gallery.top) photoList.scrollTop -= gallery.top - tile.top
+  if (tile.bottom > gallery.bottom) photoList.scrollTop += tile.bottom - gallery.bottom
   $('remove-photo').hidden = photo.id === game.photoId || !uploads.some(upload => upload.id === photo.id)
   updatePieceCounts()
 }

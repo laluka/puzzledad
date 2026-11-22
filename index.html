@@ -7,8 +7,8 @@
   <meta name="description" content="A quiet jigsaw table for your favorite photos.">
   <title>Puzzle Dad</title>
   <link rel="icon" type="image/svg+xml" href="./assets/puzzle.svg">
-  <link rel="stylesheet" href="./styles.css?v=2">
-  <script type="module" src="./app.mjs?v=2"></script>
+  <link rel="stylesheet" href="./styles.css?v=3">
+  <script type="module" src="./app.mjs?v=3"></script>
 </head>
 <body>
   <svg class="definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -102,7 +102,7 @@
         <h2 id="setup-heading">New puzzle</h2>
         <button type="button" data-close class="icon-button" aria-label="Close new puzzle"><svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg></button>
       </div>
-      <div id="photo-list" class="photo-list" aria-label="Puzzle photos"></div>
+      <div id="photo-list" class="photo-list" role="group" aria-label="Puzzle photos"></div>
       <div class="setup-photo">
         <img id="setup-img" alt="">
         <label for="setup-photo-select">Photo<select id="setup-photo-select"></select></label>
