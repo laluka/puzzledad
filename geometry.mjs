@@ -1,5 +1,5 @@
 export const shapes = {
-  classic: { name: 'Classic', detail: 'Traditional jigsaw tabs' },
+  classic: { name: 'Classic', detail: 'Varied tabs and sockets' },
   wiggle: { name: 'Wiggle', detail: 'Wavy, offbeat curves' },
   mosaic: { name: 'Mosaic', detail: 'Honeycomb paving' },
   triangles: { name: 'Triangles', detail: 'Uneven triangular cuts' },
@@ -8,6 +8,7 @@ export const shapes = {
 }
 
 export const levels = [24, 50, 100, 150, 200, 250, 300]
+export const currentCutVersion = 2
 
 export function randomFrom(seed) {
   let state = seed >>> 0
@@ -47,15 +48,19 @@ const line = end => ({ end })
 const curve = (first, second, end) => ({ first, second, end })
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1])
 
-function cutEdge(start, end, depth, direction, style, shift) {
-  if (!direction) return [line(end)]
+function edgeCoordinates(start, end, depth) {
   const dx = end[0] - start[0]
   const dy = end[1] - start[1]
   const size = Math.hypot(dx, dy)
-  const at = (along, across) => [
-    start[0] + dx * along + dy / size * across * direction * depth,
-    start[1] + dy * along - dx / size * across * direction * depth,
+  return (along, across) => [
+    start[0] + dx * along + dy / size * across * depth,
+    start[1] + dy * along - dx / size * across * depth,
   ]
+}
+
+function cutEdge(start, end, depth, direction, style, shift) {
+  if (!direction) return [line(end)]
+  const at = edgeCoordinates(start, end, depth * direction)
 
   if (style === 'wiggle') {
     return [
@@ -71,6 +76,33 @@ function cutEdge(start, end, depth, direction, style, shift) {
     curve(tab(.45, 0), tab(.36, .29), tab(.36, .55)),
     curve(tab(.36, 1.02), tab(.64, 1.02), tab(.64, .55)),
     curve(tab(.64, .29), tab(.55, 0), tab(.6, 0)),
+    line(end),
+  ]
+}
+
+const tabProfiles = [
+  { center: .42, depth: .17, neck: .14, head: .32, shoulder: .44, cap: .91, lean: 0 },
+  { center: .53, depth: .30, neck: .11, head: .22, shoulder: .53, cap: .58, lean: .025 },
+  { center: .49, depth: .24, neck: .22, head: .40, shoulder: .81, cap: 1, lean: .01 },
+  { center: .53, depth: .27, neck: .13, head: .30, shoulder: .58, cap: .78, lean: -.09 },
+]
+
+function variedTab(start, end, unit, profile, direction, mirror, centerShift, depthShift) {
+  const { center, depth, neck, head, shoulder, cap, lean } = profile
+  const at = edgeCoordinates(start, end, unit * (depth + depthShift) * direction)
+  const middle = .5 + (center - .5) * mirror + centerShift
+  const crown = middle + lean * mirror
+  const leftNeck = middle - neck / 2
+  const rightNeck = middle + neck / 2
+  const leftHead = crown - head / 2
+  const rightHead = crown + head / 2
+  const capReach = head * cap / 2
+  return [
+    line(at(leftNeck, 0)),
+    curve(at(leftNeck + .018, 0), at(leftHead, shoulder * .48), at(leftHead, shoulder)),
+    curve(at(leftHead, 1), at(crown - capReach, 1), at(crown, 1)),
+    curve(at(crown + capReach, 1), at(rightHead, 1), at(rightHead, shoulder)),
+    curve(at(rightHead, shoulder * .48), at(rightNeck - .018, 0), at(rightNeck, 0)),
     line(end),
   ]
 }
@@ -118,16 +150,37 @@ function polygon(vertices, width, height) {
   return makePiece(vertices, [...vertices.slice(1), vertices[0]].map(line), width, height)
 }
 
-function jigsaw(width, height, count, style, repeating, random) {
+function jigsaw(width, height, count, style, repeating, random, cutVersion) {
   const { columns, rows } = grid(count, width / height)
   const dx = width / columns
   const dy = height / rows
-  const point = (column, row) => [column * dx, row * dy]
+  const unit = Math.min(dx, dy)
+  const varied = style === 'classic' && cutVersion >= 2
+  const stagger = varied && !repeating
+  const offset = (index, last) => stagger && index > 0 && index < last ? (random() - .5) * .15 : 0
+  const vertices = Array.from({ length: rows + 1 }, (_, row) =>
+    Array.from({ length: columns + 1 }, (_, column) =>
+      [(column + offset(column, columns)) * dx, (row + offset(row, rows)) * dy]))
+  const point = (column, row) => vertices[row][column]
+  const motif = [[0, 2, 1], [3, 1, 2]]
+  const polarity = value => value < .5 ? -1 : 1
   const edge = (column, row, vertical, outer) => {
     const start = point(column, row)
     const end = point(column + Number(!vertical), row + Number(vertical))
+    if (varied) {
+      if (outer) return [line(end)]
+      const axis = Number(vertical)
+      const index = repeating
+        ? motif[(row + axis) % 2][(column + axis) % 3]
+        : Math.floor(random() * tabProfiles.length)
+      const direction = repeating ? ((column + Math.floor(row / 2) + axis) % 2 ? 1 : -1) : polarity(random())
+      const mirror = repeating ? ((row + column + axis) % 2 ? 1 : -1) : polarity(random())
+      const centerShift = repeating ? 0 : (random() - .5) * .052
+      const depthShift = repeating ? 0 : (random() - .5) * .036
+      return variedTab(start, end, unit, tabProfiles[index], direction, mirror, centerShift, depthShift)
+    }
     const direction = repeating ? ((column + row) % 2 ? 1 : -1) : (random() < .5 ? -1 : 1)
-    const depth = Math.min(dx, dy) * (repeating ? .23 : .205 + .055 * random())
+    const depth = unit * (repeating ? .23 : .205 + .055 * random())
     const shift = repeating ? 0 : (random() - .5) * .12
     return cutEdge(start, end, depth, outer ? 0 : direction, style, shift)
   }
@@ -260,7 +313,7 @@ function mosaic(width, height, count, repeating, random) {
 }
 
 export function generatePuzzle(photo, settings) {
-  const { count, seed, pattern } = settings
+  const { count, seed, pattern, cutVersion = currentCutVersion } = settings
   const random = randomFrom(seed)
   const choices = Object.keys(shapes).filter(shape => shape !== 'surprise')
   const shape = settings.shape === 'surprise' ? choices[Math.floor(random() * choices.length)] : settings.shape
@@ -276,7 +329,7 @@ export function generatePuzzle(photo, settings) {
   } else if (shape === 'mosaic') {
     pieces = mosaic(width, height, count, repeating, random)
   } else {
-    pieces = jigsaw(width, height, count, shape, repeating, random)
+    pieces = jigsaw(width, height, count, shape, repeating, random, cutVersion)
   }
   pieces.forEach((piece, id) => {
     const closest = Math.min(...pieces.filter(other => other !== piece).map(other =>

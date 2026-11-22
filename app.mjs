@@ -1,4 +1,4 @@
-import { generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs'
+import { currentCutVersion, generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs?v=2'
 import { keepOnTable, layoutTable } from './layout.mjs'
 
 const starterPhotos = [
@@ -100,6 +100,7 @@ function newGame(photoId, settings, generated) {
     started: false,
     paused: false,
     guide: true,
+    frame: true,
     edges: false,
   }
 }
@@ -109,7 +110,8 @@ function loadPuzzle() {
   const photo = findPhoto(saved?.photoId)
   if (photo && Object.hasOwn(shapes, saved.shape) && [...levels, 12, 48, 80].includes(saved.count) &&
       ['random', 'repeating'].includes(saved.pattern) && Number.isInteger(saved.seed)) {
-    const generated = generatePuzzle(photo, saved)
+    const cutVersion = saved.cutVersion ?? (saved.started || saved.placements?.length ? 1 : currentCutVersion)
+    const generated = generatePuzzle(photo, { ...saved, cutVersion })
     const ids = new Set(generated.pieces.map(piece => piece.id))
     const inOrder = Array.isArray(saved.order) && new Set(saved.order).size === ids.size &&
       saved.order.length === ids.size && saved.order.every(id => ids.has(id))
@@ -127,10 +129,14 @@ function loadPuzzle() {
       const turns = Object.fromEntries(Object.entries(saved.turns || {}).filter(([id, turn]) =>
         ids.has(Number(id)) && Number.isInteger(turn) && turn >= 0 && turn < 4))
       const rotationSeed = Number.isInteger(saved.rotationSeed) ? saved.rotationSeed : saved.seed ^ 0x61c88647
-      return { game: { ...saved, positions, depth, orientation, rotationSeed, turns }, puzzle: generated }
+      const frame = saved.frame !== false
+      return { game: { ...saved, cutVersion, positions, depth, orientation, rotationSeed, turns, frame }, puzzle: generated }
     }
   }
-  const settings = { shape: 'classic', count: 150, seed: newSeed(), pattern: 'random', orientation: 'fixed' }
+  const settings = {
+    shape: 'classic', count: 150, seed: newSeed(), pattern: 'random',
+    orientation: 'fixed', cutVersion: currentCutVersion,
+  }
   const generated = generatePuzzle(starterPhotos[0], settings)
   return { game: newGame(starterPhotos[0].id, settings, generated), puzzle: generated }
 }
@@ -299,12 +305,14 @@ function renderBoardState() {
   $('progress').max = count
   $('progress').value = placed.size
   board.classList.toggle('no-guide', !game.guide)
+  board.classList.toggle('no-frame', !game.frame)
   board.classList.toggle('complete', complete())
   board.setAttribute('tabindex', game.paused ? '-1' : '0')
   for (const node of looseNodes.values()) node.setAttribute('tabindex', game.paused ? '-1' : '0')
   $('guide-toggle').setAttribute('aria-pressed', String(game.guide))
+  $('frame-toggle').setAttribute('aria-pressed', String(game.frame))
   $('edge-toggle').setAttribute('aria-pressed', String(game.edges))
-  $('guide-toggle').disabled = complete()
+  for (const id of ['guide-toggle', 'frame-toggle', 'edge-toggle', 'shuffle']) $(id).hidden = complete()
   $('edge-toggle').disabled = game.paused || complete()
   $('shuffle').disabled = game.paused || complete()
   $('timer-toggle').disabled = complete()
@@ -696,6 +704,12 @@ $('guide-toggle').addEventListener('click', () => {
   persist()
 })
 
+$('frame-toggle').addEventListener('click', () => {
+  game.frame = !game.frame
+  renderBoardState()
+  persist()
+})
+
 $('edge-toggle').addEventListener('click', () => {
   clearSelection()
   game.edges = !game.edges
@@ -795,6 +809,7 @@ $('setup-form').addEventListener('submit', event => {
     count: Number(countSelect.value),
     pattern: patternSelect.value,
     orientation: orientationSelect.value,
+    cutVersion: currentCutVersion,
     seed: newSeed(),
   }
   puzzle = generatePuzzle(photo, settings)
