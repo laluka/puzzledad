@@ -7,8 +7,8 @@
   <meta name="description" content="A quiet jigsaw table for your favorite photos.">
   <title>Puzzle Dad</title>
   <link rel="icon" type="image/svg+xml" href="./assets/puzzle.svg">
-  <link rel="stylesheet" href="./styles.css?v=6">
-  <script type="module" src="./app.mjs?v=5"></script>
+  <link rel="stylesheet" href="./styles.css?v=7">
+  <script type="module" src="./app.mjs?v=6"></script>
 </head>
 <body>
   <svg class="definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -50,6 +50,7 @@
       <div id="pause-overlay" class="pause-overlay" hidden>
         <button type="button" class="button primary" id="resume"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg>Resume puzzle</button>
       </div>
+      <button type="button" id="fullscreen-exit" class="fullscreen-exit" aria-label="Exit fullscreen" title="Exit fullscreen" hidden><svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg></button>
       <p id="board-help" class="visually-hidden">Drag loose pieces to move them. With the keyboard, Tab to a piece, press Enter to pick it up, use the arrow keys to move it and press Enter to place it. Escape puts it back. In shuffled orientation mode, click a piece or press R to rotate it clockwise.</p>
     </div>
 

@@ -704,6 +704,7 @@ function syncFullscreen() {
   button.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen')
   button.title = active ? 'Exit fullscreen' : 'Enter fullscreen'
   $('fullscreen-icon').setAttribute('href', active ? '#i-fullscreen-exit' : '#i-fullscreen')
+  $('fullscreen-exit').hidden = !active
   refreshLayout(true)
 }
 
@@ -713,6 +714,13 @@ $('fullscreen-toggle').addEventListener('click', async () => {
     else await document.documentElement.requestFullscreen()
   } catch {
     toast('Fullscreen is unavailable in this browser.')
+  }
+})
+$('fullscreen-exit').addEventListener('click', async () => {
+  try {
+    await document.exitFullscreen()
+  } catch {
+    announce('Could not exit fullscreen. Press Escape to leave fullscreen.')
   }
 })
 document.addEventListener('fullscreenchange', syncFullscreen)
