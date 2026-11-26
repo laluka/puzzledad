@@ -7,8 +7,8 @@ export const shapes = {
   surprise: { name: 'Surprise me', detail: 'A randomly chosen cut' },
 }
 
-export const levels = [24, 50, 100, 150, 200, 250, 300]
-export const currentCutVersion = 2
+export const levels = [24, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000]
+export const currentCutVersion = 3
 
 export function randomFrom(seed) {
   let state = seed >>> 0
@@ -58,15 +58,21 @@ function edgeCoordinates(start, end, depth) {
   ]
 }
 
-function cutEdge(start, end, depth, direction, style, shift) {
+function cutEdge(start, end, depth, direction, style, shift, cutVersion) {
   if (!direction) return [line(end)]
   const at = edgeCoordinates(start, end, depth * direction)
 
   if (style === 'wiggle') {
-    return [
+    if (cutVersion < 3) return [
       curve(at(.16, 0), at(.16, .94), at(.35 + shift, .74)),
       curve(at(.51 + shift, .54), at(.48 + shift, -.92), at(.69 + shift, -.7)),
       curve(at(.82, -.57), at(.85, 0), end),
+    ]
+    const wave = 1 + shift * 4
+    return [
+      curve(at(.13, 0), at(.17, .98 * wave), at(.34 + shift, .78 * wave)),
+      curve(at(.49 + shift, .55 * wave), at(.51 + shift, -1.04 / wave), at(.70 + shift, -.76 / wave)),
+      curve(at(.86, -.59 / wave), at(.87, 0), end),
     ]
   }
 
@@ -80,11 +86,21 @@ function cutEdge(start, end, depth, direction, style, shift) {
   ]
 }
 
-const tabProfiles = [
+const oldTabProfiles = [
   { center: .42, depth: .17, neck: .14, head: .32, shoulder: .44, cap: .91, lean: 0 },
   { center: .53, depth: .30, neck: .11, head: .22, shoulder: .53, cap: .58, lean: .025 },
   { center: .49, depth: .24, neck: .22, head: .40, shoulder: .81, cap: 1, lean: .01 },
   { center: .53, depth: .27, neck: .13, head: .30, shoulder: .58, cap: .78, lean: -.09 },
+]
+
+const tabProfiles = [
+  { center: .37, depth: .17, neck: .12, head: .31, shoulder: .40, cap: .91, lean: -.03 },
+  { center: .60, depth: .34, neck: .10, head: .23, shoulder: .57, cap: .58, lean: .03 },
+  { center: .48, depth: .24, neck: .22, head: .43, shoulder: .84, cap: 1, lean: .01 },
+  { center: .55, depth: .28, neck: .13, head: .34, shoulder: .59, cap: .78, lean: -.10 },
+  { center: .32, depth: .32, neck: .09, head: .20, shoulder: .80, cap: .82, lean: .07 },
+  { center: .64, depth: .20, neck: .19, head: .36, shoulder: .46, cap: .95, lean: -.06 },
+  { center: .50, depth: .38, neck: .12, head: .28, shoulder: .76, cap: .68, lean: .06 },
 ]
 
 function variedTab(start, end, unit, profile, direction, mirror, centerShift, depthShift) {
@@ -157,12 +173,14 @@ function jigsaw(width, height, count, style, repeating, random, cutVersion) {
   const unit = Math.min(dx, dy)
   const varied = style === 'classic' && cutVersion >= 2
   const stagger = varied && !repeating
-  const offset = (index, last) => stagger && index > 0 && index < last ? (random() - .5) * .15 : 0
+  const offset = (index, last) => stagger && index > 0 && index < last ?
+    (random() - .5) * (cutVersion >= 3 ? .25 : .15) : 0
   const vertices = Array.from({ length: rows + 1 }, (_, row) =>
     Array.from({ length: columns + 1 }, (_, column) =>
       [(column + offset(column, columns)) * dx, (row + offset(row, rows)) * dy]))
   const point = (column, row) => vertices[row][column]
-  const motif = [[0, 2, 1], [3, 1, 2]]
+  const profiles = cutVersion >= 3 ? tabProfiles : oldTabProfiles
+  const motif = cutVersion >= 3 ? [[0, 2, 1, 4], [3, 5, 6, 2]] : [[0, 2, 1], [3, 1, 2]]
   const polarity = value => value < .5 ? -1 : 1
   const edge = (column, row, vertical, outer) => {
     const start = point(column, row)
@@ -171,18 +189,18 @@ function jigsaw(width, height, count, style, repeating, random, cutVersion) {
       if (outer) return [line(end)]
       const axis = Number(vertical)
       const index = repeating
-        ? motif[(row + axis) % 2][(column + axis) % 3]
-        : Math.floor(random() * tabProfiles.length)
+        ? motif[(row + axis) % 2][(column + axis) % motif[0].length]
+        : Math.floor(random() * profiles.length)
       const direction = repeating ? ((column + Math.floor(row / 2) + axis) % 2 ? 1 : -1) : polarity(random())
       const mirror = repeating ? ((row + column + axis) % 2 ? 1 : -1) : polarity(random())
-      const centerShift = repeating ? 0 : (random() - .5) * .052
-      const depthShift = repeating ? 0 : (random() - .5) * .036
-      return variedTab(start, end, unit, tabProfiles[index], direction, mirror, centerShift, depthShift)
+      const centerShift = repeating ? 0 : (random() - .5) * (cutVersion >= 3 ? .085 : .052)
+      const depthShift = repeating ? 0 : (random() - .5) * (cutVersion >= 3 ? .05 : .036)
+      return variedTab(start, end, unit, profiles[index], direction, mirror, centerShift, depthShift)
     }
     const direction = repeating ? ((column + row) % 2 ? 1 : -1) : (random() < .5 ? -1 : 1)
     const depth = unit * (repeating ? .23 : .205 + .055 * random())
     const shift = repeating ? 0 : (random() - .5) * .12
-    return cutEdge(start, end, depth, outer ? 0 : direction, style, shift)
+    return cutEdge(start, end, depth, outer ? 0 : direction, style, shift, cutVersion)
   }
   const horizontal = Array.from({ length: rows + 1 }, (_, row) =>
     Array.from({ length: columns }, (_, column) => edge(column, row, false, row === 0 || row === rows)))

@@ -53,7 +53,8 @@ function pack(puzzle, view, order, turns) {
   const entries = order.map(id => {
     const piece = puzzle.pieces[id]
     const { left, right, top, bottom } = orientedBounds(piece, turns[id])
-    return { id, left, top, width: right - left + gap, height: bottom - top + gap }
+    // Let pieces overlap slightly in the side trays so the picture can fill more of the table.
+    return { id, left, top, width: (right - left) * .5 + gap, height: (bottom - top) * .5 + gap }
   })
   // Pack the larger pieces first. The shuffled order breaks ties between similar pieces.
   entries.sort((a, b) => Math.round(Math.max(b.width, b.height) / gap) -
@@ -87,8 +88,8 @@ export function layoutTable(puzzle, width, height, order, turns = []) {
   height = Math.max(1, height)
   const aspect = width / height
   const sideRoom = aspect >= 1.12
-  const fitWidth = Math.min(width * (sideRoom ? .54 : .91),
-    height * (sideRoom ? .82 : .5) * puzzle.width / puzzle.height)
+  const fitWidth = Math.min(width * (sideRoom ? .72 : .94),
+    height * (sideRoom ? .96 : .6) * puzzle.width / puzzle.height)
   function arrange(scale) {
     const worldWidth = width / scale
     const worldHeight = height / scale

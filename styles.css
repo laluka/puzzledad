@@ -58,17 +58,18 @@ h1, h2, p, figure { margin: 0; }
 }
 .table {
   display: grid;
-  grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
+  grid-template: minmax(0, 1fr) auto / minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
 }
+.controls { grid-row: 2; min-width: 0; }
 .puzzlebar {
   display: flex;
   align-items: stretch;
   justify-content: center;
   min-height: 3.25rem;
   background: var(--paper);
-  border-bottom: 1px solid #cdd2c5;
+  border-top: 1px solid #cdd2c5;
   padding-inline: .4rem;
 }
 .indicator {
@@ -105,7 +106,7 @@ progress::-webkit-progress-bar { background: #e1e5d9; }
 progress::-webkit-progress-value { background: #607d5a; transition: width .18s ease-out; }
 progress::-moz-progress-bar { background: #607d5a; transition: width .18s ease-out; }
 .stage {
-  grid-row: 2;
+  grid-row: 1;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -136,25 +137,26 @@ progress::-moz-progress-bar { background: #607d5a; transition: width .18s ease-o
 .solved-piece .piece-outline { stroke-opacity: .3; }
 .loose-piece { cursor: grab; outline: none; }
 .loose-piece .piece-graphic { pointer-events: none; filter: drop-shadow(0 1px 1px #27322255); }
-.loose-piece .hit-piece { fill: transparent; pointer-events: all; }
+.loose-piece .hit-piece { fill: transparent; stroke: transparent; stroke-width: 12; stroke-linejoin: round; pointer-events: visiblePainted; }
 .loose-piece:hover .piece-outline, .loose-piece:focus-visible .piece-outline,
 .loose-piece[aria-pressed="true"] .piece-outline {
   stroke: #a14b2f;
   stroke-opacity: 1;
   stroke-width: 2;
 }
+.loose-piece.near-target .piece-graphic { filter: drop-shadow(0 0 7px #f9dc72) drop-shadow(0 0 3px #fff7cf); }
+.loose-piece.near-target .piece-outline { stroke: #fff3b0; stroke-opacity: 1; stroke-width: 2.6; }
 .board[data-dragging], .loose-piece[data-dragging] { cursor: grabbing; }
 .board.miss #board-target { stroke: var(--rust); }
 .snap-spark { pointer-events: none; stroke: #fff9e1; stroke-linecap: round; stroke-width: 2.5; }
 .snap-spark line { vector-effect: non-scaling-stroke; }
 .pause-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #e8eddfd9; backdrop-filter: blur(4px); animation: fade-in .16s ease-out; }
 .toolbar {
-  grid-row: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: .3rem;
-  border-top: 1px solid #cdd2c5;
+  border-top: 1px solid #e1e3d8;
   background: var(--paper);
   padding: .28rem .6rem max(.28rem, env(safe-area-inset-bottom));
 }

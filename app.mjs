@@ -1,5 +1,5 @@
-import { currentCutVersion, generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs?v=2'
-import { keepOnTable, layoutTable } from './layout.mjs'
+import { currentCutVersion, generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs?v=3'
+import { keepOnTable, layoutTable } from './layout.mjs?v=2'
 import { starterPhotos } from './photos.mjs'
 
 const $ = id => document.getElementById(id)
@@ -360,8 +360,11 @@ function refreshLayout(resetView = false) {
 function movePiece(id, position) {
   const piece = puzzle.pieces[id]
   piecePositions.set(id, position)
-  looseNodes.get(id).setAttribute('transform', 'translate(' + (position.x - piece.x) + ' ' +
+  const node = looseNodes.get(id)
+  node.setAttribute('transform', 'translate(' + (position.x - piece.x) + ' ' +
     (position.y - piece.y) + ')')
+  node.classList.toggle('near-target', turnsFor(id) === 0 &&
+    Math.hypot(position.x - piece.x, position.y - piece.y) <= piece.snap * 1.3)
 }
 
 function setAngle(rotor, piece, angle) {
@@ -619,7 +622,7 @@ board.addEventListener('keydown', event => {
 
 board.addEventListener('focusin', event => {
   const node = event.target.closest('[data-piece]')
-  if (node) keepInView(piecePositions.get(Number(node.dataset.piece)))
+  if (node && node.matches(':focus-visible')) keepInView(piecePositions.get(Number(node.dataset.piece)))
 })
 
 board.addEventListener('pointerdown', event => {
@@ -693,6 +696,26 @@ board.addEventListener('wheel', event => {
 $('zoom-in').addEventListener('click', () => zoomTable(1.36))
 $('zoom-out').addEventListener('click', () => zoomTable(1 / 1.36))
 $('zoom-fit').addEventListener('click', () => zoomTable(1 / zoom))
+
+function syncFullscreen() {
+  const active = document.fullscreenElement === document.documentElement
+  const button = $('fullscreen-toggle')
+  button.setAttribute('aria-pressed', String(active))
+  button.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen')
+  button.title = active ? 'Exit fullscreen' : 'Enter fullscreen'
+  $('fullscreen-icon').setAttribute('href', active ? '#i-fullscreen-exit' : '#i-fullscreen')
+}
+
+$('fullscreen-toggle').addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen()
+    else await document.documentElement.requestFullscreen()
+  } catch {
+    toast('Fullscreen is unavailable in this browser.')
+  }
+})
+document.addEventListener('fullscreenchange', syncFullscreen)
+if (!document.fullscreenEnabled) $('fullscreen-toggle').disabled = true
 
 $('guide-toggle').addEventListener('click', () => {
   game.guide = !game.guide
