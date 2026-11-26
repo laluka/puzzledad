@@ -1,5 +1,5 @@
 import { currentCutVersion, generatePuzzle, levels, randomFrom, shapes, shuffle } from './geometry.mjs?v=3'
-import { keepOnTable, layoutTable } from './layout.mjs?v=2'
+import { keepOnTable, layoutTable } from './layout.mjs?v=3'
 import { starterPhotos } from './photos.mjs'
 
 const $ = id => document.getElementById(id)
@@ -349,7 +349,8 @@ function zoomTable(multiplier, point = viewCenter()) {
 function refreshLayout(resetView = false) {
   const center = camera && !resetView ? viewCenter() : { x: puzzle.width / 2, y: puzzle.height / 2 }
   if (resetView) zoom = 1
-  layout = layoutTable(puzzle, stage.clientWidth, stage.clientHeight, game.order, initialTurns)
+  layout = layoutTable(puzzle, stage.clientWidth, stage.clientHeight, game.order, initialTurns,
+    document.fullscreenElement === document.documentElement)
   setView(center.x, center.y)
   for (const id of looseNodes.keys()) {
     const position = game.positions[id] || layout.positions.get(id)
@@ -363,8 +364,6 @@ function movePiece(id, position) {
   const node = looseNodes.get(id)
   node.setAttribute('transform', 'translate(' + (position.x - piece.x) + ' ' +
     (position.y - piece.y) + ')')
-  node.classList.toggle('near-target', turnsFor(id) === 0 &&
-    Math.hypot(position.x - piece.x, position.y - piece.y) <= piece.snap * 1.3)
 }
 
 function setAngle(rotor, piece, angle) {
@@ -699,11 +698,13 @@ $('zoom-fit').addEventListener('click', () => zoomTable(1 / zoom))
 
 function syncFullscreen() {
   const active = document.fullscreenElement === document.documentElement
+  document.documentElement.classList.toggle('puzzle-fullscreen', active)
   const button = $('fullscreen-toggle')
   button.setAttribute('aria-pressed', String(active))
   button.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen')
   button.title = active ? 'Exit fullscreen' : 'Enter fullscreen'
   $('fullscreen-icon').setAttribute('href', active ? '#i-fullscreen-exit' : '#i-fullscreen')
+  refreshLayout(true)
 }
 
 $('fullscreen-toggle').addEventListener('click', async () => {

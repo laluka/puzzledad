@@ -1,27 +1,3 @@
-const intersects = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x &&
-  a.y < b.y + b.height && a.y + a.height > b.y
-
-const contains = (outer, inner) => inner.x >= outer.x && inner.y >= outer.y &&
-  inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height
-
-function subtract(rectangle, used) {
-  if (!intersects(rectangle, used)) return [rectangle]
-  const { x, y, width, height } = rectangle
-  const right = x + width
-  const bottom = y + height
-  return [
-    { x, y, width: used.x - x, height },
-    { x: used.x + used.width, y, width: right - used.x - used.width, height },
-    { x, y, width, height: used.y - y },
-    { x, y: used.y + used.height, width, height: bottom - used.y - used.height },
-  ].filter(space => space.width > .001 && space.height > .001)
-}
-
-function removeContained(spaces) {
-  return spaces.filter((space, index) => !spaces.some((other, otherIndex) =>
-    otherIndex !== index && contains(other, space) && (!contains(space, other) || otherIndex < index)))
-}
-
 function orientedBounds(piece, turns = 0) {
   const left = piece.bounds.left - piece.x
   const right = piece.bounds.right - piece.x
@@ -48,7 +24,7 @@ function pack(puzzle, view, order, turns) {
     { x: puzzle.width + gutter, y: -gutter, width: right - puzzle.width - gutter, height: puzzle.height + gutter * 2 },
   ].filter(rectangle => rectangle.width > 0 && rectangle.height > 0)
   const zones = strips.map(rectangle => ({
-    area: rectangle.width * rectangle.height, used: 0, spaces: [rectangle],
+    rectangle, area: rectangle.width * rectangle.height, used: 0, entries: [],
   }))
   const entries = order.map(id => {
     const piece = puzzle.pieces[id]
@@ -59,37 +35,53 @@ function pack(puzzle, view, order, turns) {
   // Pack the larger pieces first. The shuffled order breaks ties between similar pieces.
   entries.sort((a, b) => Math.round(Math.max(b.width, b.height) / gap) -
     Math.round(Math.max(a.width, a.height) / gap))
+  for (const entry of entries) {
+    const area = entry.width * entry.height
+    const available = zones.filter(zone => zone.rectangle.width >= entry.width &&
+      zone.rectangle.height >= entry.height && zone.used + area <= zone.area * .95)
+    if (!available.length) return null
+    available.sort((a, b) => a.used / a.area - b.used / b.area)
+    available[0].entries.push(entry)
+    available[0].used += area
+  }
   const positions = new Map()
-  for (const { id, left, top, width, height } of entries) {
-    let best = null
-    for (const zone of zones) {
-      for (const space of zone.spaces) {
-        if (space.width < width || space.height < height) continue
-        const fit = Math.min(space.width - width, space.height - height) / Math.min(width, height)
-        const score = zone.used / zone.area + fit * .058
-        if (!best || score < best.score) best = { zone, space, score }
-      }
+  for (const zone of zones) {
+    const { rectangle, entries } = zone
+    if (!entries.length) continue
+    let grid = null
+    const maxWidth = Math.max(...entries.map(entry => entry.width))
+    const maxHeight = Math.max(...entries.map(entry => entry.height))
+    for (let columns = 1; columns <= entries.length; columns++) {
+      const rows = Math.ceil(entries.length / columns)
+      const crowding = Math.max(maxWidth * columns / rectangle.width,
+        maxHeight * rows / rectangle.height)
+      const score = crowding + (columns * rows - entries.length) / entries.length * .08
+      if (!grid || score < grid.score) grid = { columns, rows, crowding, score }
     }
-    if (!best) return null
-    const { zone, space } = best
-    const footprint = { x: space.x, y: space.y, width, height }
-    zone.used += width * height
-    zone.spaces = removeContained(zone.spaces.flatMap(area => subtract(area, footprint)))
-    positions.set(id, {
-      x: space.x + gap / 2 - left,
-      y: space.y + gap / 2 - top,
+    if (grid.crowding > 1.3) return null
+    entries.forEach((entry, index) => {
+      const row = Math.floor(index / grid.columns)
+      const rowCount = Math.min(grid.columns, entries.length - row * grid.columns)
+      const column = index % grid.columns
+      const centerX = rectangle.x + (column + .5) * rectangle.width / rowCount
+      const centerY = rectangle.y + (row + .5) * rectangle.height / grid.rows
+      positions.set(entry.id, {
+        x: centerX - entry.width / 2 + gap / 2 - entry.left,
+        y: centerY - entry.height / 2 + gap / 2 - entry.top,
+      })
     })
   }
   return positions
 }
 
-export function layoutTable(puzzle, width, height, order, turns = []) {
+export function layoutTable(puzzle, width, height, order, turns = [], fullscreen = false) {
   width = Math.max(1, width)
   height = Math.max(1, height)
   const aspect = width / height
   const sideRoom = aspect >= 1.12
   const fitWidth = Math.min(width * (sideRoom ? .72 : .94),
-    height * (sideRoom ? .96 : .6) * puzzle.width / puzzle.height)
+    height * (sideRoom ? .96 : .6) * puzzle.width / puzzle.height) *
+    (fullscreen ? (sideRoom ? .82 : .9) : 1)
   function arrange(scale) {
     const worldWidth = width / scale
     const worldHeight = height / scale

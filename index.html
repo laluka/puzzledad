@@ -7,8 +7,8 @@
   <meta name="description" content="A quiet jigsaw table for your favorite photos.">
   <title>Puzzle Dad</title>
   <link rel="icon" type="image/svg+xml" href="./assets/puzzle.svg">
-  <link rel="stylesheet" href="./styles.css?v=4">
-  <script type="module" src="./app.mjs?v=4"></script>
+  <link rel="stylesheet" href="./styles.css?v=6">
+  <script type="module" src="./app.mjs?v=5"></script>
 </head>
 <body>
   <svg class="definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -54,45 +54,45 @@
     </div>
 
     <footer class="controls">
-    <div class="puzzlebar" role="group" aria-label="Puzzle status">
-      <button type="button" class="indicator time-indicator" id="timer-toggle" aria-label="Pause timer" aria-pressed="false">
-        <svg class="icon" aria-hidden="true"><use id="timer-icon" href="#i-pause"></use></svg>
-        <span class="indicator-label">Time</span>
-        <strong id="elapsed" aria-hidden="true">0:00</strong>
-      </button>
-      <div class="indicator progress-indicator">
-        <span class="indicator-label">Progress</span>
-        <strong id="progress-text">0 / 150</strong>
-        <progress id="progress" value="0" max="150" aria-label="Pieces placed"></progress>
-      </div>
-      <div class="indicator">
-        <span class="indicator-label">Est. finish</span>
-        <strong id="estimate" title="Estimated local finish time based on your recent placements">—</strong>
-      </div>
-      <div class="indicator save-indicator" id="storage-status" role="status">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span class="indicator-label">Auto-save</span>
-        <strong id="save-value">On</strong>
-      </div>
-    </div>
+      <nav class="toolbar" aria-label="Puzzle tools">
+        <div class="tool-group">
+          <button type="button" class="button utility new-button" id="new-game" aria-label="New puzzle"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span>New puzzle</span></button>
+          <button type="button" class="icon-button" id="preview-photo" aria-label="Reference photo" title="Reference photo"><svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg></button>
+          <button type="button" class="icon-button" id="guide-toggle" aria-label="Background photo" aria-pressed="true" title="Background photo"><svg class="icon" aria-hidden="true"><use href="#i-background"></use></svg></button>
+          <button type="button" class="icon-button" id="frame-toggle" aria-label="Placement frame" aria-pressed="true" title="Placement frame"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg></button>
+          <button type="button" class="icon-button" id="edge-toggle" aria-label="Show edge pieces only" aria-pressed="false" title="Show edge pieces only"><svg class="icon" aria-hidden="true"><use href="#i-edge"></use></svg></button>
+          <button type="button" class="icon-button" id="shuffle" aria-label="Shuffle loose pieces" title="Shuffle loose pieces"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"></use></svg></button>
+          <button type="button" class="button utility" id="show-results" hidden>Results</button>
+        </div>
+        <div class="tool-group zoom-group">
+          <button type="button" class="icon-button" id="zoom-out" aria-label="Zoom out" title="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"></use></svg></button>
+          <button type="button" class="icon-button" id="zoom-fit" aria-label="Fit puzzle table" title="Fit puzzle table"><svg class="icon" aria-hidden="true"><use href="#i-expand"></use></svg></button>
+          <button type="button" class="icon-button" id="zoom-in" aria-label="Zoom in" title="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg></button>
+          <button type="button" class="icon-button" id="fullscreen-toggle" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen"><svg class="icon" aria-hidden="true"><use id="fullscreen-icon" href="#i-fullscreen"></use></svg></button>
+        </div>
+      </nav>
 
-    <nav class="toolbar" aria-label="Puzzle tools">
-      <div class="tool-group">
-        <button type="button" class="button utility new-button" id="new-game" aria-label="New puzzle"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span>New puzzle</span></button>
-        <button type="button" class="icon-button" id="preview-photo" aria-label="Reference photo" title="Reference photo"><svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg></button>
-        <button type="button" class="icon-button" id="guide-toggle" aria-label="Background photo" aria-pressed="true" title="Background photo"><svg class="icon" aria-hidden="true"><use href="#i-background"></use></svg></button>
-        <button type="button" class="icon-button" id="frame-toggle" aria-label="Placement frame" aria-pressed="true" title="Placement frame"><svg class="icon" aria-hidden="true"><use href="#i-guide"></use></svg></button>
-        <button type="button" class="icon-button" id="edge-toggle" aria-label="Show edge pieces only" aria-pressed="false" title="Show edge pieces only"><svg class="icon" aria-hidden="true"><use href="#i-edge"></use></svg></button>
-        <button type="button" class="icon-button" id="shuffle" aria-label="Shuffle loose pieces" title="Shuffle loose pieces"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"></use></svg></button>
-        <button type="button" class="button utility" id="show-results" hidden>Results</button>
+      <div class="puzzlebar" role="group" aria-label="Puzzle status">
+        <button type="button" class="indicator time-indicator" id="timer-toggle" aria-label="Pause timer" aria-pressed="false">
+          <svg class="icon" aria-hidden="true"><use id="timer-icon" href="#i-pause"></use></svg>
+          <span class="indicator-label">Time</span>
+          <strong id="elapsed" aria-hidden="true">0:00</strong>
+        </button>
+        <div class="indicator progress-indicator">
+          <span class="indicator-label">Progress</span>
+          <strong id="progress-text">0 / 150</strong>
+          <progress id="progress" value="0" max="150" aria-label="Pieces placed"></progress>
+        </div>
+        <div class="indicator">
+          <span class="indicator-label">Est. finish</span>
+          <strong id="estimate" title="Estimated local finish time based on your recent placements">—</strong>
+        </div>
+        <div class="indicator save-indicator" id="storage-status" role="status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="indicator-label">Auto-save</span>
+          <strong id="save-value">On</strong>
+        </div>
       </div>
-      <div class="tool-group zoom-group">
-        <button type="button" class="icon-button" id="zoom-out" aria-label="Zoom out" title="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"></use></svg></button>
-        <button type="button" class="icon-button" id="zoom-fit" aria-label="Fit puzzle table" title="Fit puzzle table"><svg class="icon" aria-hidden="true"><use href="#i-expand"></use></svg></button>
-        <button type="button" class="icon-button" id="zoom-in" aria-label="Zoom in" title="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg></button>
-        <button type="button" class="icon-button" id="fullscreen-toggle" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen"><svg class="icon" aria-hidden="true"><use id="fullscreen-icon" href="#i-fullscreen"></use></svg></button>
-      </div>
-    </nav>
     </footer>
     <p id="announcement" class="visually-hidden" role="status"></p>
   </main>
